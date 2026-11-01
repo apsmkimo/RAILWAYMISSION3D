@@ -42,7 +42,9 @@
 ### 雲端自動建置（選用）
 
 - `Script compile check`：每次推送 C# 檔都會在 GitHub Actions 檢查腳本能否編譯（不需 Unity 授權）。
-- `Android build`：在 Actions 頁面手動執行，以 GameCI 建置 APK。需先設定 Secrets：`UNITY_LICENSE`、`UNITY_EMAIL`、`UNITY_PASSWORD`（[說明](https://game.ci/docs/github/activation)）。
+- `Android debug APK`：每次推送遊戲內容到 main（或在 Actions 頁面手動執行）都會以 GameCI 建置 **Debug APK**，完成後在該次執行的 Artifacts 下載 `RailwayMission3D-debug-apk`。
+  - 需先在 repo 的 Settings → Secrets and variables → Actions 新增：`UNITY_LICENSE`（Unity 個人授權檔 `Unity_lic.ulf` 的完整內容；Windows 位於 `C:\ProgramData\Unity\Unity_lic.ulf`，macOS 位於 `/Library/Application Support/Unity/Unity_lic.ulf`）、`UNITY_EMAIL`、`UNITY_PASSWORD`（[說明](https://game.ci/docs/github/activation)）。
+  - 未設定時流程會略過建置並顯示提示。
 
 ---
 

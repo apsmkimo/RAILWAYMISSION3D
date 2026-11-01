@@ -98,19 +98,29 @@ namespace RailwayMission.EditorTools
         [MenuItem("Railway Mission/4. 建置 Android APK", priority = 20)]
         public static void BuildAndroidMenu() => BuildAndroid();
 
+        [MenuItem("Railway Mission/4b. 建置 Android Debug APK", priority = 21)]
+        public static void BuildAndroidDebugMenu() => BuildAndroidDebug();
+
         /// <summary>命令列／CI 建置入口：-executeMethod RailwayMission.EditorTools.RailwayMissionEditor.BuildAndroid</summary>
-        public static void BuildAndroid()
+        public static void BuildAndroid() => Build(false);
+
+        /// <summary>CI 的 Debug APK：Development Build＋可偵錯，使用 Android 預設 debug 簽章。</summary>
+        public static void BuildAndroidDebug() => Build(true);
+
+        static void Build(bool debug)
         {
             ApplyProjectSettings();
             if (!File.Exists(ScenePath)) CreateSceneInternal();
-            string output = "Builds/Android/RailwayMission3D.apk";
+            EditorUserBuildSettings.buildAppBundle = false; // 輸出 APK 而非 AAB
+            PlayerSettings.Android.useCustomKeystore = false;
+            string output = debug ? "Builds/Android/RailwayMission3D-debug.apk" : "Builds/Android/RailwayMission3D.apk";
             Directory.CreateDirectory(Path.GetDirectoryName(output));
             var options = new BuildPlayerOptions
             {
                 scenes = new[] { ScenePath },
                 locationPathName = output,
                 target = BuildTarget.Android,
-                options = BuildOptions.None
+                options = debug ? (BuildOptions.Development | BuildOptions.AllowDebugging) : BuildOptions.None
             };
             var report = BuildPipeline.BuildPlayer(options);
             Debug.Log($"[Railway Mission] 建置結果：{report.summary.result}，大小 {report.summary.totalSize / (1024 * 1024)} MB → {output}");

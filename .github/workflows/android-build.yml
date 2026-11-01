@@ -1,30 +1,61 @@
-# 以 GameCI 在雲端建置 Android APK（手動觸發）。
+# 以 GameCI 在雲端建置 Android Debug APK。
+# 觸發：推送到 main（遊戲內容有變更時）或在 Actions 頁面手動執行。
 # 需先在 GitHub → Settings → Secrets and variables → Actions 新增：
-#   UNITY_LICENSE（Unity 個人授權 .ulf 檔內容）、UNITY_EMAIL、UNITY_PASSWORD
-# 說明：https://game.ci/docs/github/activation
-name: Android build
+#   UNITY_LICENSE（Unity 個人授權 Unity_lic.ulf 檔的完整內容）、UNITY_EMAIL、UNITY_PASSWORD
+# 尚未設定時，此流程會略過建置並顯示提示，不會失敗。說明：https://game.ci/docs/github/activation
+name: Android debug APK
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "Assets/**"
+      - "Packages/**"
+      - "ProjectSettings/**"
+      - ".github/workflows/android-build.yml"
   workflow_dispatch:
 
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-android:
+  check-license:
     runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          if [ -n "$UNITY_LICENSE" ] && [ -n "$UNITY_EMAIL" ] && [ -n "$UNITY_PASSWORD" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::尚未設定 UNITY_LICENSE / UNITY_EMAIL / UNITY_PASSWORD，略過 Android 建置。"
+          fi
+
+  build-android-debug:
+    needs: check-license
+    if: needs.check-license.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-        with:
-          lfs: true
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /usr/local/lib/android "$AGENT_TOOLSDIRECTORY"
+          df -h
 
       - uses: actions/cache@v4
         with:
           path: Library
           key: Library-Android-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
           restore-keys: Library-Android-
-
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
-          df -h
 
       - uses: game-ci/unity-builder@v4
         env:
@@ -34,9 +65,11 @@ jobs:
         with:
           unityVersion: 6000.3.27f1
           targetPlatform: Android
-          buildMethod: RailwayMission.EditorTools.RailwayMissionEditor.BuildAndroid
+          buildMethod: RailwayMission.EditorTools.RailwayMissionEditor.BuildAndroidDebug
 
       - uses: actions/upload-artifact@v4
         with:
-          name: RailwayMission3D-Android
-          path: Builds/Android
+          name: RailwayMission3D-debug-apk
+          path: Builds/Android/*.apk
+          if-no-files-found: error
+          retention-days: 14
